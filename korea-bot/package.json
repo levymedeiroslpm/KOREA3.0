@@ -1,0 +1,16 @@
+{
+  "name": "korea-bot-completo",
+  "version": "2.0.0",
+  "description": "Bot completo para servidor RP: set, parceria, tickets, punições, vendas, baú, metas e logs.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.21.0",
+    "dotenv": "^16.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
