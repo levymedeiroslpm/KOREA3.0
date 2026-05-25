@@ -1,4 +1,10 @@
+// ===============================
+// BOT FAC RP - SISTEMA COMPLETO
+// ===============================
+
 require('dotenv').config();
+
+const express = require('express');
 
 const {
     Client,
@@ -21,13 +27,29 @@ const {
 
     ChannelType,
     PermissionFlagsBits
+
 } = require('discord.js');
+
+// ===============================
+// EXPRESS / RENDER
+// ===============================
+
+const app = express();
+
+app.get('/', (req, res) => {
+    res.send('KOREA BOT ONLINE');
+});
+
+app.listen(3000, () => {
+    console.log('Servidor web ligado.');
+});
 
 // ===============================
 // CONFIG
 // ===============================
 
 const TOKEN = process.env.TOKEN;
+
 const CLIENT_ID = process.env.CLIENT_ID || '1507961405545119814';
 const GUILD_ID = process.env.GUILD_ID || '1505576877505646702';
 
@@ -44,6 +66,8 @@ const CANAL_AUSENCIA = process.env.CANAL_AUSENCIA || '1505576877958496259';
 const CANAL_BAU_LOG = process.env.CANAL_BAU_LOG || '1505576878759612417';
 const CANAL_VENDAS = process.env.CANAL_VENDAS || '1505576878759612419';
 const CANAL_METAS = process.env.CANAL_METAS || '1505576879778824368';
+const CANAL_TABELA_PRECOS = process.env.CANAL_TABELA_PRECOS || '1505576878759612421';
+
 const CATEGORIA_TICKETS = process.env.CATEGORIA_TICKETS || '1505576879099216079';
 
 // ===============================
@@ -51,13 +75,16 @@ const CATEGORIA_TICKETS = process.env.CATEGORIA_TICKETS || '1505576879099216079'
 // ===============================
 
 const client = new Client({
+
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent
     ],
+
     partials: [Partials.Channel]
+
 });
 
 // ===============================
@@ -65,40 +92,38 @@ const client = new Client({
 // ===============================
 
 function makeEmbed(title, description, color = 'DarkRed') {
+
     return new EmbedBuilder()
-        .setTitle(title)
-        .setDescription(description)
-        .setColor(color)
-        .setTimestamp();
-}
 
-async function sendLog(guild, title, description, color = 'DarkRed') {
-    try {
-        if (!CANAL_LOGS) return;
-        const channel = guild.channels.cache.get(CANAL_LOGS);
-        if (!channel) return;
+    .setTitle(title)
+    .setDescription(description)
+    .setColor(color)
+    .setTimestamp();
 
-        await channel.send({
-            embeds: [makeEmbed(title, description, color)]
-        });
-    } catch (err) {
-        console.log('Erro ao enviar log:', err.message);
-    }
 }
 
 async function safeReply(interaction, options) {
+
     try {
+
         if (interaction.replied || interaction.deferred) {
             return interaction.followUp(options);
         }
+
         return interaction.reply(options);
+
     } catch (err) {
-        console.log('Erro ao responder interação:', err.message);
+
+        console.log(err);
+
     }
+
 }
 
 function onlyStaff(interaction) {
+
     return interaction.member.roles.cache.has(CARGO_STAFF);
+
 }
 
 // ===============================
@@ -106,134 +131,47 @@ function onlyStaff(interaction) {
 // ===============================
 
 const commands = [
-    new SlashCommandBuilder()
-        .setName('set')
-        .setDescription('Enviar painel de solicitação de set'),
 
     new SlashCommandBuilder()
-        .setName('suporte')
-        .setDescription('Enviar painel de suporte'),
+    .setName('set')
+    .setDescription('Painel de set'),
 
     new SlashCommandBuilder()
-        .setName('parceria')
-        .setDescription('Enviar parceria')
-        .addStringOption(option =>
-            option.setName('localizacao')
-                .setDescription('Localização da família/fac parceira')
-                .setRequired(true)
-        )
-        .addStringOption(option =>
-            option.setName('familia')
-                .setDescription('Nome da família/fac parceira')
-                .setRequired(true)
-        )
-        .addAttachmentOption(option =>
-            option.setName('foto')
-                .setDescription('Foto da roupa ou identidade da parceria')
-                .setRequired(true)
-        ),
+    .setName('ticket')
+    .setDescription('Painel de ticket'),
 
     new SlashCommandBuilder()
-        .setName('punir')
-        .setDescription('Registrar punição')
-        .addUserOption(option =>
-            option.setName('usuario')
-                .setDescription('Usuário punido')
-                .setRequired(true)
-        )
-        .addStringOption(option =>
-            option.setName('motivo')
-                .setDescription('Motivo da punição')
-                .setRequired(true)
-        )
-        .addStringOption(option =>
-            option.setName('punicao')
-                .setDescription('Tipo de punição')
-                .setRequired(true)
-        ),
+    .setName('parceria')
+    .setDescription('Painel de parceria'),
 
     new SlashCommandBuilder()
-        .setName('ausencia')
-        .setDescription('Registrar ausência')
-        .addStringOption(option =>
-            option.setName('motivo')
-                .setDescription('Motivo da ausência')
-                .setRequired(true)
-        )
-        .addStringOption(option =>
-            option.setName('retorno')
-                .setDescription('Data ou previsão de retorno')
-                .setRequired(true)
-        ),
+    .setName('ausencia')
+    .setDescription('Painel de ausência'),
 
     new SlashCommandBuilder()
-        .setName('sugestao')
-        .setDescription('Enviar sugestão')
-        .addStringOption(option =>
-            option.setName('texto')
-                .setDescription('Sua sugestão')
-                .setRequired(true)
-        ),
+    .setName('punicao')
+    .setDescription('Painel de punição'),
 
     new SlashCommandBuilder()
-        .setName('bau')
-        .setDescription('Registrar movimentação no baú')
-        .addStringOption(option =>
-            option.setName('tipo')
-                .setDescription('colocou ou retirou')
-                .setRequired(true)
-                .addChoices(
-                    { name: 'Colocou', value: 'colocou' },
-                    { name: 'Retirou', value: 'retirou' }
-                )
-        )
-        .addStringOption(option =>
-            option.setName('item')
-                .setDescription('Item movimentado')
-                .setRequired(true)
-        )
-        .addStringOption(option =>
-            option.setName('quantidade')
-                .setDescription('Quantidade')
-                .setRequired(true)
-        ),
+    .setName('sugestao')
+    .setDescription('Painel de sugestão'),
 
     new SlashCommandBuilder()
-        .setName('venda')
-        .setDescription('Registrar venda ou encomenda')
-        .addStringOption(option =>
-            option.setName('produto')
-                .setDescription('Produto vendido/encomendado')
-                .setRequired(true)
-        )
-        .addStringOption(option =>
-            option.setName('valor')
-                .setDescription('Valor')
-                .setRequired(true)
-        )
-        .addStringOption(option =>
-            option.setName('cliente')
-                .setDescription('Cliente/comprador')
-                .setRequired(false)
-        ),
+    .setName('bau')
+    .setDescription('Painel do baú'),
 
     new SlashCommandBuilder()
-        .setName('meta')
-        .setDescription('Registrar meta/farm/pagamento')
-        .addStringOption(option =>
-            option.setName('descricao')
-                .setDescription('Descrição da meta')
-                .setRequired(true)
-        )
-        .addStringOption(option =>
-            option.setName('valor')
-                .setDescription('Valor/quantidade')
-                .setRequired(true)
-        ),
+    .setName('venda')
+    .setDescription('Painel de vendas'),
 
     new SlashCommandBuilder()
-        .setName('fechar')
-        .setDescription('Fechar o ticket atual')
+    .setName('meta')
+    .setDescription('Painel de metas'),
+
+    new SlashCommandBuilder()
+    .setName('tabela')
+    .setDescription('Enviar tabela de preços')
+
 ];
 
 // ===============================
@@ -242,69 +180,127 @@ const commands = [
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-async function registerCommands() {
+(async () => {
+
     try {
+
         console.log('Registrando comandos...');
+
         await rest.put(
-            Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+
+            Routes.applicationGuildCommands(
+                CLIENT_ID,
+                GUILD_ID
+            ),
+
             { body: commands.map(cmd => cmd.toJSON()) }
+
         );
+
         console.log('Comandos registrados.');
-    } catch (error) {
-        console.log('Erro ao registrar comandos:', error);
+
+    } catch (err) {
+
+        console.log(err);
+
     }
-}
+
+})();
 
 // ===============================
 // READY
 // ===============================
 
-client.once(Events.ClientReady, async () => {
+client.once(Events.ClientReady, () => {
+
     console.log(`Bot online: ${client.user.tag}`);
+
 });
 
 // ===============================
-// MEMBRO ENTROU / SAIU
+// ENTRADA
 // ===============================
 
 client.on(Events.GuildMemberAdd, async member => {
+
     try {
+
         await member.roles.add(CARGO_SEM_CARGO);
 
-        const embed = makeEmbed(
-            '🚪 Novo membro',
-            `${member} entrou no servidor e recebeu o cargo **SEM CARGO**.`,
-            'Green'
-        );
+        const canal =
+        member.guild.channels.cache.get(CANAL_ENTRADA_SAIDA);
 
-        if (CANAL_ENTRADA_SAIDA) {
-            const canal = member.guild.channels.cache.get(CANAL_ENTRADA_SAIDA);
-            if (canal) await canal.send({ embeds: [embed] });
-        }
-
-        await sendLog(member.guild, '✅ Cargo automático', `${member} recebeu <@&${CARGO_SEM_CARGO}>.`, 'Green');
-        console.log(`${member.user.tag} recebeu SEM CARGO`);
-
-    } catch (err) {
-        console.log('Erro ao dar SEM CARGO:', err.message);
-        await sendLog(member.guild, '❌ Erro ao dar cargo', `Não consegui dar SEM CARGO para ${member}.\nErro: ${err.message}`, 'Red');
-    }
-});
-
-client.on(Events.GuildMemberRemove, async member => {
-    try {
-        if (!CANAL_ENTRADA_SAIDA) return;
-        const canal = member.guild.channels.cache.get(CANAL_ENTRADA_SAIDA);
         if (!canal) return;
 
-        await canal.send({
-            embeds: [
-                makeEmbed('🚪 Membro saiu', `**${member.user.tag}** saiu do servidor.`, 'Red')
-            ]
+        const embed = new EmbedBuilder()
+
+        .setTitle('👋 Bem-vindo à KOREA')
+
+        .setDescription(
+
+            `🇰🇷 Salve ${member}\n\n` +
+
+            `Você acabou de entrar no servidor.\n\n` +
+
+            `📌 Vá até o painel de set e solicite sua liberação.\n\n` +
+
+            `🔥 Boa sorte na cidade.`
+
+        )
+
+        .setThumbnail(
+            member.user.displayAvatarURL({ dynamic: true })
+        )
+
+        .setColor('Green')
+
+        .setTimestamp();
+
+        canal.send({
+            embeds: [embed]
         });
+
     } catch (err) {
-        console.log('Erro saída:', err.message);
+
+        console.log(err);
+
     }
+
+});
+
+// ===============================
+// SAÍDA
+// ===============================
+
+client.on(Events.GuildMemberRemove, async member => {
+
+    const canal =
+    member.guild.channels.cache.get(CANAL_ENTRADA_SAIDA);
+
+    if (!canal) return;
+
+    const embed = new EmbedBuilder()
+
+    .setTitle('👋 Um membro saiu')
+
+    .setDescription(
+
+        `😢 ${member.user.tag} nos deixou.`
+
+    )
+
+    .setThumbnail(
+        member.user.displayAvatarURL({ dynamic: true })
+    )
+
+    .setColor('Red')
+
+    .setTimestamp();
+
+    canal.send({
+        embeds: [embed]
+    });
+
 });
 
 // ===============================
@@ -315,506 +311,487 @@ client.on(Events.InteractionCreate, async interaction => {
 
     try {
 
-        // ===============================
+        // ===========================
         // SLASH COMMANDS
-        // ===============================
+        // ===========================
 
         if (interaction.isChatInputCommand()) {
 
-            // /set
+            if (!onlyStaff(interaction)) {
+
+                return safeReply(interaction, {
+
+                    content: '❌ Apenas staff.',
+                    ephemeral: true
+
+                });
+
+            }
+
+            // =======================
+            // /SET
+            // =======================
+
             if (interaction.commandName === 'set') {
-                if (!onlyStaff(interaction)) {
-                    return safeReply(interaction, {
-                        content: '❌ Apenas staff pode usar esse comando.',
-                        ephemeral: true
-                    });
-                }
 
                 const embed = makeEmbed(
-                    '📌 SOLICITAR SET',
-                    'Bem-vindo à fac.\n\nClique no botão abaixo e preencha:\n\n👤 **Nome no jogo**\n🆔 **ID do jogo**\n\nA staff vai conferir e liberar seu acesso.',
+
+                    '📌 PAINEL DE SET',
+
+                    'Clique abaixo para solicitar sua setagem.',
+
                     'DarkRed'
+
                 );
 
-                const row = new ActionRowBuilder().addComponents(
+                const row = new ActionRowBuilder()
+
+                .addComponents(
+
                     new ButtonBuilder()
-                        .setCustomId('abrir_set')
-                        .setLabel('SOLICITAR SET')
-                        .setStyle(ButtonStyle.Danger)
+
+                    .setCustomId('abrir_set')
+
+                    .setLabel('SOLICITAR SET')
+
+                    .setStyle(ButtonStyle.Danger)
+
                 );
 
-                await interaction.channel.send({ embeds: [embed], components: [row] });
+                await interaction.channel.send({
+
+                    embeds: [embed],
+                    components: [row]
+
+                });
 
                 return safeReply(interaction, {
-                    content: '✅ Painel de set enviado.',
+
+                    content: '✅ Painel enviado.',
                     ephemeral: true
+
                 });
+
             }
 
-            // /suporte
-            if (interaction.commandName === 'suporte') {
-                if (!onlyStaff(interaction)) {
-                    return safeReply(interaction, {
-                        content: '❌ Apenas staff pode usar esse comando.',
-                        ephemeral: true
-                    });
-                }
+            // =======================
+            // /TICKET
+            // =======================
+
+            if (interaction.commandName === 'ticket') {
 
                 const embed = makeEmbed(
+
                     '📣 SUPORTE',
-                    'Precisa de ajuda? Clique no botão abaixo para abrir um ticket com a staff.',
-                    'DarkRed'
+
+                    'Clique abaixo para abrir ticket.',
+
+                    'Blue'
+
                 );
 
-                const row = new ActionRowBuilder().addComponents(
+                const row = new ActionRowBuilder()
+
+                .addComponents(
+
                     new ButtonBuilder()
-                        .setCustomId('abrir_suporte')
-                        .setLabel('ABRIR SUPORTE')
-                        .setStyle(ButtonStyle.Primary)
+
+                    .setCustomId('abrir_ticket')
+
+                    .setLabel('ABRIR TICKET')
+
+                    .setStyle(ButtonStyle.Primary)
+
                 );
 
-                await interaction.channel.send({ embeds: [embed], components: [row] });
+                await interaction.channel.send({
+
+                    embeds: [embed],
+                    components: [row]
+
+                });
 
                 return safeReply(interaction, {
-                    content: '✅ Painel de suporte enviado.',
+
+                    content: '✅ Painel enviado.',
                     ephemeral: true
+
                 });
+
             }
 
-            // /parceria
+            // =======================
+            // /PARCERIA
+            // =======================
+
             if (interaction.commandName === 'parceria') {
-                const localizacao = interaction.options.getString('localizacao');
-                const familia = interaction.options.getString('familia');
-                const foto = interaction.options.getAttachment('foto');
 
-                const canal = CANAL_PARCERIA ? interaction.guild.channels.cache.get(CANAL_PARCERIA) : interaction.channel;
+                const embed = makeEmbed(
 
-                if (!canal) {
-                    return safeReply(interaction, {
-                        content: '❌ Canal de parceria não encontrado.',
-                        ephemeral: true
-                    });
-                }
+                    '🤝 PARCERIA',
+
+                    'Clique abaixo para enviar parceria.',
+
+                    'Green'
+
+                );
+
+                const row = new ActionRowBuilder()
+
+                .addComponents(
+
+                    new ButtonBuilder()
+
+                    .setCustomId('abrir_parceria')
+
+                    .setLabel('ENVIAR PARCERIA')
+
+                    .setStyle(ButtonStyle.Success)
+
+                );
+
+                await interaction.channel.send({
+
+                    embeds: [embed],
+                    components: [row]
+
+                });
+
+                return safeReply(interaction, {
+
+                    content: '✅ Painel enviado.',
+                    ephemeral: true
+
+                });
+
+            }
+
+            // =======================
+            // TABELA
+            // =======================
+
+            if (interaction.commandName === 'tabela') {
+
+                const canal =
+                interaction.guild.channels.cache.get(
+                    CANAL_TABELA_PRECOS
+                );
+
+                if (!canal) return;
 
                 const embed = new EmbedBuilder()
-                    .setTitle('🤝 NOVA PARCERIA')
-                    .addFields(
-                        { name: '📍 Localização', value: localizacao },
-                        { name: '👥 Família', value: familia },
-                        { name: '👤 Enviado por', value: `${interaction.user}` }
-                    )
-                    .setImage(foto.url)
-                    .setColor('DarkRed')
-                    .setTimestamp();
 
-                await canal.send({ embeds: [embed] });
+                .setTitle('💸 TABELA DE PREÇOS')
 
-                await sendLog(interaction.guild, '🤝 Parceria enviada', `${interaction.user} enviou parceria: **${familia}**.`, 'Green');
+                .setDescription(
+
+                    `📦 PRODUTO 1 - R$0\n` +
+                    `📦 PRODUTO 2 - R$0\n` +
+                    `📦 PRODUTO 3 - R$0`
+
+                )
+
+                .setColor('Green');
+
+                canal.send({
+                    embeds: [embed]
+                });
 
                 return safeReply(interaction, {
-                    content: '✅ Parceria enviada.',
+
+                    content: '✅ Tabela enviada.',
                     ephemeral: true
-                });
-            }
 
-            // /punir
-            if (interaction.commandName === 'punir') {
-                if (!onlyStaff(interaction)) {
-                    return safeReply(interaction, {
-                        content: '❌ Apenas staff pode usar esse comando.',
-                        ephemeral: true
-                    });
-                }
-
-                const usuario = interaction.options.getUser('usuario');
-                const motivo = interaction.options.getString('motivo');
-                const punicao = interaction.options.getString('punicao');
-
-                const embed = makeEmbed(
-                    '🔴 PUNIÇÃO REGISTRADA',
-                    `👤 **Usuário:** ${usuario}\n🧾 **Punição:** ${punicao}\n📌 **Motivo:** ${motivo}\n👮 **Staff:** ${interaction.user}`,
-                    'Red'
-                );
-
-                const canal = CANAL_PUNICOES ? interaction.guild.channels.cache.get(CANAL_PUNICOES) : interaction.channel;
-                if (canal) await canal.send({ embeds: [embed] });
-
-                await sendLog(interaction.guild, '🔴 Punição', `${usuario} recebeu punição: **${punicao}**.\nMotivo: ${motivo}`, 'Red');
-
-                return safeReply(interaction, {
-                    content: '✅ Punição registrada.',
-                    ephemeral: true
-                });
-            }
-
-            // /ausencia
-            if (interaction.commandName === 'ausencia') {
-                const motivo = interaction.options.getString('motivo');
-                const retorno = interaction.options.getString('retorno');
-
-                const embed = makeEmbed(
-                    '💤 AUSÊNCIA REGISTRADA',
-                    `👤 **Membro:** ${interaction.user}\n📌 **Motivo:** ${motivo}\n📅 **Retorno previsto:** ${retorno}`,
-                    'Yellow'
-                );
-
-                const canal = CANAL_AUSENCIA ? interaction.guild.channels.cache.get(CANAL_AUSENCIA) : interaction.channel;
-                if (canal) await canal.send({ embeds: [embed] });
-
-                return safeReply(interaction, {
-                    content: '✅ Ausência registrada.',
-                    ephemeral: true
-                });
-            }
-
-            // /sugestao
-            if (interaction.commandName === 'sugestao') {
-                const texto = interaction.options.getString('texto');
-
-                const embed = makeEmbed(
-                    '🎯 NOVA SUGESTÃO',
-                    `👤 **Autor:** ${interaction.user}\n\n💡 **Sugestão:**\n${texto}`,
-                    'Blue'
-                );
-
-                const canal = CANAL_SUGESTOES ? interaction.guild.channels.cache.get(CANAL_SUGESTOES) : interaction.channel;
-                const msg = await canal.send({ embeds: [embed] });
-
-                await msg.react('✅');
-                await msg.react('❌');
-
-                return safeReply(interaction, {
-                    content: '✅ Sugestão enviada.',
-                    ephemeral: true
-                });
-            }
-
-            // /bau
-            if (interaction.commandName === 'bau') {
-                const tipo = interaction.options.getString('tipo');
-                const item = interaction.options.getString('item');
-                const quantidade = interaction.options.getString('quantidade');
-
-                const icon = tipo === 'colocou' ? '📥' : '📤';
-                const color = tipo === 'colocou' ? 'Green' : 'Orange';
-
-                const embed = makeEmbed(
-                    `${icon} CONTROLE DE BAÚ`,
-                    `👤 **Membro:** ${interaction.user}\n📦 **Item:** ${item}\n🔢 **Quantidade:** ${quantidade}\n📌 **Tipo:** ${tipo}`,
-                    color
-                );
-
-                const canal = CANAL_BAU_LOG ? interaction.guild.channels.cache.get(CANAL_BAU_LOG) : interaction.channel;
-                if (canal) await canal.send({ embeds: [embed] });
-
-                return safeReply(interaction, {
-                    content: '✅ Registro de baú enviado.',
-                    ephemeral: true
-                });
-            }
-
-            // /venda
-            if (interaction.commandName === 'venda') {
-                const produto = interaction.options.getString('produto');
-                const valor = interaction.options.getString('valor');
-                const clienteNome = interaction.options.getString('cliente') || 'Não informado';
-
-                const embed = makeEmbed(
-                    '💸 VENDA / ENCOMENDA',
-                    `👤 **Vendedor:** ${interaction.user}\n🛒 **Produto:** ${produto}\n💰 **Valor:** ${valor}\n🤝 **Cliente:** ${clienteNome}`,
-                    'Green'
-                );
-
-                const canal = CANAL_VENDAS ? interaction.guild.channels.cache.get(CANAL_VENDAS) : interaction.channel;
-                if (canal) await canal.send({ embeds: [embed] });
-
-                return safeReply(interaction, {
-                    content: '✅ Venda registrada.',
-                    ephemeral: true
-                });
-            }
-
-            // /meta
-            if (interaction.commandName === 'meta') {
-                const descricao = interaction.options.getString('descricao');
-                const valor = interaction.options.getString('valor');
-
-                const embed = makeEmbed(
-                    '🍀 META REGISTRADA',
-                    `👤 **Membro:** ${interaction.user}\n📌 **Descrição:** ${descricao}\n📊 **Valor/Quantidade:** ${valor}`,
-                    'Green'
-                );
-
-                const canal = CANAL_METAS ? interaction.guild.channels.cache.get(CANAL_METAS) : interaction.channel;
-                if (canal) await canal.send({ embeds: [embed] });
-
-                return safeReply(interaction, {
-                    content: '✅ Meta registrada.',
-                    ephemeral: true
-                });
-            }
-
-            // /fechar
-            if (interaction.commandName === 'fechar') {
-                if (!interaction.channel.name.startsWith('set-') && !interaction.channel.name.startsWith('suporte-')) {
-                    return safeReply(interaction, {
-                        content: '❌ Esse comando só funciona em ticket.',
-                        ephemeral: true
-                    });
-                }
-
-                await safeReply(interaction, {
-                    content: '🔒 Ticket será fechado.',
-                    ephemeral: true
                 });
 
-                setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
-                return;
             }
+
         }
 
-        // ===============================
+        // ===========================
         // BOTÕES
-        // ===============================
+        // ===========================
 
         if (interaction.isButton()) {
 
-            // Abrir SET
+            // =======================
+            // ABRIR SET
+            // =======================
+
             if (interaction.customId === 'abrir_set') {
+
                 const modal = new ModalBuilder()
-                    .setCustomId('modal_set')
-                    .setTitle('Solicitação de Set');
 
-                const nomeInput = new TextInputBuilder()
-                    .setCustomId('nome_jogo')
-                    .setLabel('Nome no jogo')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true);
+                .setCustomId('modal_set')
 
-                const idInput = new TextInputBuilder()
-                    .setCustomId('id_jogo')
-                    .setLabel('ID do jogo')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true);
+                .setTitle('Solicitação de Set');
+
+                const nome = new TextInputBuilder()
+
+                .setCustomId('nome')
+
+                .setLabel('Nome no jogo')
+
+                .setStyle(TextInputStyle.Short)
+
+                .setRequired(true);
+
+                const id = new TextInputBuilder()
+
+                .setCustomId('id')
+
+                .setLabel('ID do jogo')
+
+                .setStyle(TextInputStyle.Short)
+
+                .setRequired(true);
 
                 modal.addComponents(
-                    new ActionRowBuilder().addComponents(nomeInput),
-                    new ActionRowBuilder().addComponents(idInput)
+
+                    new ActionRowBuilder()
+                    .addComponents(nome),
+
+                    new ActionRowBuilder()
+                    .addComponents(id)
+
                 );
 
                 return interaction.showModal(modal);
+
             }
 
-            // Abrir suporte
-            if (interaction.customId === 'abrir_suporte') {
-                const canal = await interaction.guild.channels.create({
-                    name: `suporte-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+            // =======================
+            // ABRIR TICKET
+            // =======================
+
+            if (interaction.customId === 'abrir_ticket') {
+
+                const canal =
+                await interaction.guild.channels.create({
+
+                    name:
+                    `ticket-${interaction.user.username}`,
+
                     type: ChannelType.GuildText,
-                    parent: CATEGORIA_TICKETS || null,
+
+                    parent: CATEGORIA_TICKETS,
+
                     permissionOverwrites: [
+
                         {
                             id: interaction.guild.id,
-                            deny: [PermissionFlagsBits.ViewChannel]
+
+                            deny: [
+                                PermissionFlagsBits.ViewChannel
+                            ]
                         },
+
                         {
                             id: interaction.user.id,
+
                             allow: [
                                 PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages,
-                                PermissionFlagsBits.ReadMessageHistory
+                                PermissionFlagsBits.SendMessages
                             ]
                         },
+
                         {
                             id: CARGO_STAFF,
+
                             allow: [
                                 PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages,
-                                PermissionFlagsBits.ReadMessageHistory
+                                PermissionFlagsBits.SendMessages
                             ]
                         }
+
                     ]
+
                 });
 
-                const row = new ActionRowBuilder().addComponents(
+                const row = new ActionRowBuilder()
+
+                .addComponents(
+
                     new ButtonBuilder()
-                        .setCustomId('fechar_ticket')
-                        .setLabel('FECHAR')
-                        .setStyle(ButtonStyle.Secondary)
+
+                    .setCustomId('fechar_ticket')
+
+                    .setLabel('FECHAR')
+
+                    .setStyle(ButtonStyle.Secondary)
+
                 );
 
-                await canal.send({
-                    content: `<@&${CARGO_STAFF}> ${interaction.user}`,
+                canal.send({
+
+                    content:
+                    `<@&${CARGO_STAFF}> ${interaction.user}`,
+
                     embeds: [
+
                         makeEmbed(
-                            '📣 SUPORTE ABERTO',
-                            `Usuário: ${interaction.user}\n\nExplique seu problema para a staff.`,
+
+                            '📣 TICKET ABERTO',
+
+                            'Aguarde a staff.',
+
                             'Blue'
+
                         )
+
                     ],
+
                     components: [row]
+
                 });
 
                 return safeReply(interaction, {
-                    content: `✅ Ticket criado: ${canal}`,
+
+                    content:
+                    `✅ Ticket criado: ${canal}`,
+
                     ephemeral: true
-                });
-            }
 
-            // Aprovar set
-            if (interaction.customId.startsWith('aprovar_set_')) {
-                if (!onlyStaff(interaction)) {
-                    return safeReply(interaction, {
-                        content: '❌ Apenas staff pode aprovar.',
-                        ephemeral: true
-                    });
-                }
-
-                const userId = interaction.customId.split('_')[2];
-                const membro = await interaction.guild.members.fetch(userId);
-
-                await membro.roles.remove(CARGO_SEM_CARGO).catch(() => {});
-                await membro.roles.add(CARGO_MEMBRO);
-
-                await interaction.update({
-                    content: `✅ ${membro} foi aprovado por ${interaction.user}.`,
-                    components: []
                 });
 
-                await membro.send('✅ Você foi aprovado na setagem e seu acesso foi liberado.').catch(() => {});
-                await sendLog(interaction.guild, '✅ Set aprovado', `${membro} foi aprovado por ${interaction.user}.`, 'Green');
-
-                return;
             }
 
-            // Reprovar set
-            if (interaction.customId.startsWith('reprovar_set_')) {
-                if (!onlyStaff(interaction)) {
-                    return safeReply(interaction, {
-                        content: '❌ Apenas staff pode reprovar.',
-                        ephemeral: true
-                    });
-                }
-
-                const userId = interaction.customId.split('_')[2];
-                const membro = await interaction.guild.members.fetch(userId).catch(() => null);
-
-                await interaction.update({
-                    content: `❌ Solicitação reprovada por ${interaction.user}.`,
-                    components: []
-                });
-
-                if (membro) {
-                    await membro.send('❌ Sua solicitação de set foi reprovada. Procure a staff para mais informações.').catch(() => {});
-                    await sendLog(interaction.guild, '❌ Set reprovado', `${membro} foi reprovado por ${interaction.user}.`, 'Red');
-                }
-
-                return;
-            }
-
-            // Fechar ticket botão
-            if (interaction.customId === 'fechar_ticket') {
-                if (!onlyStaff(interaction)) {
-                    return safeReply(interaction, {
-                        content: '❌ Apenas staff pode fechar ticket.',
-                        ephemeral: true
-                    });
-                }
-
-                await safeReply(interaction, {
-                    content: '🔒 Ticket será fechado em 2 segundos.',
-                    ephemeral: true
-                });
-
-                setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
-                return;
-            }
         }
 
-        // ===============================
+        // ===========================
         // MODAL SET
-        // ===============================
+        // ===========================
 
         if (interaction.isModalSubmit()) {
-            if (interaction.customId === 'modal_set') {
-                const nome = interaction.fields.getTextInputValue('nome_jogo');
-                const id = interaction.fields.getTextInputValue('id_jogo');
 
-                const canal = await interaction.guild.channels.create({
-                    name: `set-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+            // =======================
+            // SET
+            // =======================
+
+            if (interaction.customId === 'modal_set') {
+
+                const nome =
+                interaction.fields.getTextInputValue('nome');
+
+                const id =
+                interaction.fields.getTextInputValue('id');
+
+                const canal =
+                await interaction.guild.channels.create({
+
+                    name:
+                    `set-${interaction.user.username}`,
+
                     type: ChannelType.GuildText,
-                    parent: CATEGORIA_TICKETS || null,
+
+                    parent: CATEGORIA_TICKETS,
+
                     permissionOverwrites: [
+
                         {
                             id: interaction.guild.id,
-                            deny: [PermissionFlagsBits.ViewChannel]
+
+                            deny: [
+                                PermissionFlagsBits.ViewChannel
+                            ]
                         },
+
                         {
                             id: interaction.user.id,
+
                             allow: [
                                 PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages,
-                                PermissionFlagsBits.ReadMessageHistory
+                                PermissionFlagsBits.SendMessages
                             ]
                         },
+
                         {
                             id: CARGO_STAFF,
+
                             allow: [
                                 PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages,
-                                PermissionFlagsBits.ReadMessageHistory
+                                PermissionFlagsBits.SendMessages
                             ]
                         }
+
                     ]
+
                 });
 
                 const embed = new EmbedBuilder()
-                    .setTitle('📌 NOVA SOLICITAÇÃO DE SET')
-                    .addFields(
-                        { name: '👤 Discord', value: `${interaction.user}` },
-                        { name: '🎮 Nome no jogo', value: nome },
-                        { name: '🆔 ID do jogo', value: id }
+
+                .setTitle('📌 NOVA SOLICITAÇÃO')
+
+                .addFields(
+
+                    {
+                        name: '👤 Nome',
+                        value: nome
+                    },
+
+                    {
+                        name: '🆔 ID',
+                        value: id
+                    }
+
+                )
+
+                .setColor('Red');
+
+                const row = new ActionRowBuilder()
+
+                .addComponents(
+
+                    new ButtonBuilder()
+
+                    .setCustomId(
+                        `aprovar_${interaction.user.id}`
                     )
-                    .setColor('Red')
-                    .setTimestamp();
 
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`aprovar_set_${interaction.user.id}`)
-                        .setLabel('APROVAR')
-                        .setStyle(ButtonStyle.Success),
+                    .setLabel('APROVAR')
+
+                    .setStyle(ButtonStyle.Success),
 
                     new ButtonBuilder()
-                        .setCustomId(`reprovar_set_${interaction.user.id}`)
-                        .setLabel('REPROVAR')
-                        .setStyle(ButtonStyle.Danger),
 
-                    new ButtonBuilder()
-                        .setCustomId('fechar_ticket')
-                        .setLabel('FECHAR')
-                        .setStyle(ButtonStyle.Secondary)
+                    .setCustomId(
+                        `reprovar_${interaction.user.id}`
+                    )
+
+                    .setLabel('REPROVAR')
+
+                    .setStyle(ButtonStyle.Danger)
+
                 );
 
-                await canal.send({
-                    content: `<@&${CARGO_STAFF}> ${interaction.user}`,
+                canal.send({
+
+                    content:
+                    `<@&${CARGO_STAFF}>`,
+
                     embeds: [embed],
+
                     components: [row]
+
                 });
 
-                await safeReply(interaction, {
-                    content: `✅ Solicitação enviada para staff: ${canal}`,
+                return safeReply(interaction, {
+
+                    content:
+                    `✅ Solicitação enviada.`,
+
                     ephemeral: true
+
                 });
 
-                await sendLog(interaction.guild, '📌 Nova solicitação de set', `${interaction.user} enviou solicitação.\nNome: ${nome}\nID: ${id}`, 'Yellow');
             }
+
         }
 
     } catch (err) {
-        console.log('Erro na interação:', err);
-        await safeReply(interaction, {
-            content: `❌ Deu erro: ${err.message}`,
-            ephemeral: true
-        });
+
+        console.log(err);
+
     }
 
 });
@@ -823,11 +800,4 @@ client.on(Events.InteractionCreate, async interaction => {
 // LOGIN
 // ===============================
 
-if (!TOKEN) {
-    console.log('ERRO: TOKEN não encontrado. Configure a variável TOKEN no Render.');
-    process.exit(1);
-}
-
-registerCommands().then(() => {
-    client.login(TOKEN);
-});
+client.login(TOKEN);
