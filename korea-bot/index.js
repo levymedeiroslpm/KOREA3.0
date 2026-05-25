@@ -126,6 +126,16 @@ function onlyStaff(interaction) {
 
 }
 
+async function fecharCanal(channel) {
+
+    setTimeout(() => {
+
+        channel.delete().catch(() => {});
+
+    }, 5000);
+
+}
+
 // ===============================
 // COMANDOS
 // ===============================
@@ -467,7 +477,7 @@ client.on(Events.InteractionCreate, async interaction => {
             }
 
             // =======================
-            // TABELA
+            // /TABELA
             // =======================
 
             if (interaction.commandName === 'tabela') {
@@ -515,44 +525,88 @@ client.on(Events.InteractionCreate, async interaction => {
         if (interaction.isButton()) {
 
             // =======================
-            // ABRIR SET
+            // PARCERIA
             // =======================
 
-            if (interaction.customId === 'abrir_set') {
+            if (interaction.customId === 'abrir_parceria') {
 
                 const modal = new ModalBuilder()
 
-                .setCustomId('modal_set')
+                .setCustomId('modal_parceria')
 
-                .setTitle('Solicitação de Set');
-
-                const nome = new TextInputBuilder()
-
-                .setCustomId('nome')
-
-                .setLabel('Nome no jogo')
-
-                .setStyle(TextInputStyle.Short)
-
-                .setRequired(true);
-
-                const id = new TextInputBuilder()
-
-                .setCustomId('id')
-
-                .setLabel('ID do jogo')
-
-                .setStyle(TextInputStyle.Short)
-
-                .setRequired(true);
+                .setTitle('Enviar Parceria');
 
                 modal.addComponents(
 
-                    new ActionRowBuilder()
-                    .addComponents(nome),
+                    new ActionRowBuilder().addComponents(
 
-                    new ActionRowBuilder()
-                    .addComponents(id)
+                        new TextInputBuilder()
+
+                        .setCustomId('localizacao')
+
+                        .setLabel('Localização')
+
+                        .setStyle(TextInputStyle.Short)
+
+                        .setRequired(true)
+
+                    ),
+
+                    new ActionRowBuilder().addComponents(
+
+                        new TextInputBuilder()
+
+                        .setCustomId('familia')
+
+                        .setLabel('Nome da família')
+
+                        .setStyle(TextInputStyle.Short)
+
+                        .setRequired(true)
+
+                    ),
+
+                    new ActionRowBuilder().addComponents(
+
+                        new TextInputBuilder()
+
+                        .setCustomId('faz')
+
+                        .setLabel('O que faz?')
+
+                        .setStyle(TextInputStyle.Paragraph)
+
+                        .setRequired(true)
+
+                    ),
+
+                    new ActionRowBuilder().addComponents(
+
+                        new TextInputBuilder()
+
+                        .setCustomId('telefone')
+
+                        .setLabel('Telefone')
+
+                        .setStyle(TextInputStyle.Short)
+
+                        .setRequired(true)
+
+                    ),
+
+                    new ActionRowBuilder().addComponents(
+
+                        new TextInputBuilder()
+
+                        .setCustomId('foto')
+
+                        .setLabel('Link da foto')
+
+                        .setStyle(TextInputStyle.Short)
+
+                        .setRequired(true)
+
+                    )
 
                 );
 
@@ -561,224 +615,125 @@ client.on(Events.InteractionCreate, async interaction => {
             }
 
             // =======================
-            // ABRIR TICKET
+            // APROVAR SET
             // =======================
 
-            if (interaction.customId === 'abrir_ticket') {
+            if (interaction.customId.startsWith('aprovar_')) {
 
-                const canal =
-                await interaction.guild.channels.create({
+                const userId =
+                interaction.customId.split('_')[1];
 
-                    name:
-                    `ticket-${interaction.user.username}`,
+                const membro =
+                await interaction.guild.members.fetch(userId);
 
-                    type: ChannelType.GuildText,
+                await membro.roles.remove(CARGO_SEM_CARGO);
 
-                    parent: CATEGORIA_TICKETS,
+                await membro.roles.add(CARGO_MEMBRO);
 
-                    permissionOverwrites: [
-
-                        {
-                            id: interaction.guild.id,
-
-                            deny: [
-                                PermissionFlagsBits.ViewChannel
-                            ]
-                        },
-
-                        {
-                            id: interaction.user.id,
-
-                            allow: [
-                                PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages
-                            ]
-                        },
-
-                        {
-                            id: CARGO_STAFF,
-
-                            allow: [
-                                PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages
-                            ]
-                        }
-
-                    ]
-
-                });
-
-                const row = new ActionRowBuilder()
-
-                .addComponents(
-
-                    new ButtonBuilder()
-
-                    .setCustomId('fechar_ticket')
-
-                    .setLabel('FECHAR')
-
-                    .setStyle(ButtonStyle.Secondary)
-
-                );
-
-                canal.send({
+                await interaction.reply({
 
                     content:
-                    `<@&${CARGO_STAFF}> ${interaction.user}`,
-
-                    embeds: [
-
-                        makeEmbed(
-
-                            '📣 TICKET ABERTO',
-
-                            'Aguarde a staff.',
-
-                            'Blue'
-
-                        )
-
-                    ],
-
-                    components: [row]
+                    `✅ ${membro} aprovado.`
 
                 });
 
-                return safeReply(interaction, {
+                fecharCanal(interaction.channel);
+
+            }
+
+            // =======================
+            // REPROVAR SET
+            // =======================
+
+            if (interaction.customId.startsWith('reprovar_')) {
+
+                await interaction.reply({
 
                     content:
-                    `✅ Ticket criado: ${canal}`,
-
-                    ephemeral: true
+                    `❌ Solicitação recusada.`
 
                 });
+
+                fecharCanal(interaction.channel);
 
             }
 
         }
 
         // ===========================
-        // MODAL SET
+        // MODAIS
         // ===========================
 
         if (interaction.isModalSubmit()) {
 
             // =======================
-            // SET
+            // MODAL PARCERIA
             // =======================
 
-            if (interaction.customId === 'modal_set') {
+            if (interaction.customId === 'modal_parceria') {
 
-                const nome =
-                interaction.fields.getTextInputValue('nome');
+                const localizacao =
+                interaction.fields.getTextInputValue('localizacao');
 
-                const id =
-                interaction.fields.getTextInputValue('id');
+                const familia =
+                interaction.fields.getTextInputValue('familia');
+
+                const faz =
+                interaction.fields.getTextInputValue('faz');
+
+                const telefone =
+                interaction.fields.getTextInputValue('telefone');
+
+                const foto =
+                interaction.fields.getTextInputValue('foto');
 
                 const canal =
-                await interaction.guild.channels.create({
-
-                    name:
-                    `set-${interaction.user.username}`,
-
-                    type: ChannelType.GuildText,
-
-                    parent: CATEGORIA_TICKETS,
-
-                    permissionOverwrites: [
-
-                        {
-                            id: interaction.guild.id,
-
-                            deny: [
-                                PermissionFlagsBits.ViewChannel
-                            ]
-                        },
-
-                        {
-                            id: interaction.user.id,
-
-                            allow: [
-                                PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages
-                            ]
-                        },
-
-                        {
-                            id: CARGO_STAFF,
-
-                            allow: [
-                                PermissionFlagsBits.ViewChannel,
-                                PermissionFlagsBits.SendMessages
-                            ]
-                        }
-
-                    ]
-
-                });
+                interaction.guild.channels.cache.get(
+                    CANAL_PARCERIA
+                );
 
                 const embed = new EmbedBuilder()
 
-                .setTitle('📌 NOVA SOLICITAÇÃO')
+                .setTitle('🤝 NOVA PARCERIA')
 
                 .addFields(
 
                     {
-                        name: '👤 Nome',
-                        value: nome
+                        name: '📍 Localização',
+                        value: localizacao
                     },
 
                     {
-                        name: '🆔 ID',
-                        value: id
+                        name: '👥 Família',
+                        value: familia
+                    },
+
+                    {
+                        name: '💼 O que faz',
+                        value: faz
+                    },
+
+                    {
+                        name: '☎️ Contato',
+                        value: telefone
                     }
 
                 )
 
-                .setColor('Red');
+                .setImage(foto)
 
-                const row = new ActionRowBuilder()
+                .setColor('DarkRed')
 
-                .addComponents(
-
-                    new ButtonBuilder()
-
-                    .setCustomId(
-                        `aprovar_${interaction.user.id}`
-                    )
-
-                    .setLabel('APROVAR')
-
-                    .setStyle(ButtonStyle.Success),
-
-                    new ButtonBuilder()
-
-                    .setCustomId(
-                        `reprovar_${interaction.user.id}`
-                    )
-
-                    .setLabel('REPROVAR')
-
-                    .setStyle(ButtonStyle.Danger)
-
-                );
+                .setTimestamp();
 
                 canal.send({
-
-                    content:
-                    `<@&${CARGO_STAFF}>`,
-
-                    embeds: [embed],
-
-                    components: [row]
-
+                    embeds: [embed]
                 });
 
-                return safeReply(interaction, {
+                return interaction.reply({
 
                     content:
-                    `✅ Solicitação enviada.`,
+                    '✅ Parceria enviada.',
 
                     ephemeral: true
 
